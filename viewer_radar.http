@@ -1,0 +1,6 @@
+@viewer_radar_HostAddress = http://localhost:5287
+
+GET {{viewer_radar_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
