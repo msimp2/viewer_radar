@@ -1,4 +1,4 @@
-﻿import { initMapOptions } from './mapOptions.js';
+﻿import { createOptionsPanel } from './mapOptions/mapPanel.js';
 function initializeMap() {
     // Add map styles dynamically
     const style = document.createElement('style');
@@ -18,7 +18,7 @@ function initializeMap() {
     }).addTo(window.map);
 
     // Call the map options initializer
-    initMapOptions(window.map);
+    createOptionsPanel(window.map);
 
     return window.map;
 }
