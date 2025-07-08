@@ -1,4 +1,5 @@
-﻿function initializeMap() {
+﻿import { initMapOptions } from './mapOptions.js';
+function initializeMap() {
     // Add map styles dynamically
     const style = document.createElement('style');
     style.textContent = `
@@ -16,7 +17,10 @@
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(window.map);
 
-    return map;
+    // Call the map options initializer
+    initMapOptions(window.map);
+
+    return window.map;
 }
 
 document.addEventListener('DOMContentLoaded', initializeMap);
