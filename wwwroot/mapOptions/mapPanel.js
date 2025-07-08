@@ -1,4 +1,5 @@
 ﻿import { enableLatLonGrid, disableLatLonGrid, isLatLonGridEnabled } from './latlonGrid.js';
+import { basemaps } from './basemaps.js';
 
 export function createOptionsPanel(map) {
     // Inject CSS for the options panel
@@ -29,6 +30,11 @@ export function createOptionsPanel(map) {
                 cursor: pointer;
                 user-select: none;
             }
+            .map-options-panel select {
+                margin-top: 10px;
+                width: 160px;
+                font-size: 1rem;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -47,6 +53,13 @@ export function createOptionsPanel(map) {
                     <input type="checkbox" id="latlon-grid-checkbox" />
                     lat/lon grid
                 </label>
+                <div style="margin-top: 10px;">
+                    <select id="basemap-select">
+                        <option value="OpenStreetMap">OpenStreetMap</option>
+                        <option value="OpenTopo">OpenTopo</option>
+                        <option value="DarkMatter">DarkMatter</option>
+                    </select>
+                </div>
             </div>
         `;
         // Insert the panel container just after the map
@@ -61,6 +74,30 @@ export function createOptionsPanel(map) {
             enableLatLonGrid(map);
         } else {
             disableLatLonGrid(map);
+        }
+    });
+
+    // Basemap dropdown logic
+    const basemapSelect = document.getElementById('basemap-select');
+    let currentLayer = null;
+
+    function setBasemap(name) {
+        const bm = basemaps[name];
+        if (!bm) return;
+        if (currentLayer) {
+            map.removeLayer(currentLayer);
+        }
+        currentLayer = L.tileLayer(bm.url, { attribution: bm.attribution });
+        currentLayer.addTo(map);
+    }
+
+    // Set default basemap to OpenStreetMap
+    setBasemap('OpenStreetMap');
+    basemapSelect.value = 'OpenStreetMap';
+
+    basemapSelect.addEventListener('change', function () {
+        if (this.value && basemaps[this.value]) {
+            setBasemap(this.value);
         }
     });
 }

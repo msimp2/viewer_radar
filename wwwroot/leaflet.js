@@ -12,10 +12,6 @@ function initializeMap() {
 
     // Initialize the Leaflet map
     window.map = L.map('map').setView([39.5, -98.35], 4);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(window.map);
 
     // Call the map options initializer
     createOptionsPanel(window.map);
