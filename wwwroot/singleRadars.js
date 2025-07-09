@@ -1,5 +1,4 @@
-﻿// --- Inject CSS for the NEXRAD dropdown (styled similar to Alaska buttons) ---
-const nexradStyle = document.createElement('style');
+﻿const nexradStyle = document.createElement('style');
 nexradStyle.textContent = `
 .nexrad-dropdown-row {
     display: flex;
@@ -14,19 +13,43 @@ nexradStyle.textContent = `
     margin-right: 6px;
     color: #333;
 }
-.nexrad-dropdown {
+.nexrad-dropdown-custom {
+    position: relative;
+    min-width: 120px;
+    font-size: 14px;
+}
+.nexrad-dropdown-selected {
     padding: 8px 16px;
     background: #f0f0f0;
     border: 1px solid #ccc;
     border-radius: 4px;
-    font-size: 14px;
     cursor: pointer;
-    min-width: 120px;
-    transition: border-color 0.2s;
+    user-select: none;
 }
-.nexrad-dropdown:focus {
-    border-color: #0078A8;
-    outline: none;
+.nexrad-dropdown-list {
+    display: none;
+    position: absolute;
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-top: 2px;
+    max-height: 220px;
+    overflow-y: auto;
+    min-width: 100%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.nexrad-dropdown-custom.open .nexrad-dropdown-list {
+    display: block;
+}
+.nexrad-dropdown-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.nexrad-dropdown-item:hover {
+    background: #0078A8;
+    color: #fff;
 }
 `;
 document.head.appendChild(nexradStyle);
@@ -240,9 +263,9 @@ const TDWR = [
   { Name: "TTPA", Latitude: 27.858, Longitude: -82.521, MSLHeight: 13 },
 ];
 
-// --- Add dropdown under the 'CREF CONUS' button ---
+let nexradMarker = null;
+
 document.addEventListener('DOMContentLoaded', function () {
-    // Find the CREF CONUS button
     const crefConusBtn = document.getElementById('toggle-conus-cref');
     if (!crefConusBtn) return;
 
@@ -250,27 +273,71 @@ document.addEventListener('DOMContentLoaded', function () {
     const dropdownRow = document.createElement('div');
     dropdownRow.className = 'nexrad-dropdown-row';
 
-    // Optional: Add a label
+    // Add a label
     const label = document.createElement('label');
     label.className = 'nexrad-dropdown-label';
     label.textContent = 'NEXRAD Site:';
-    label.setAttribute('for', 'nexradDropdown');
     dropdownRow.appendChild(label);
 
-    // Create the dropdown
-    const dropdown = document.createElement('select');
-    dropdown.className = 'nexrad-dropdown';
-    dropdown.id = 'nexradDropdown';
+    // Custom dropdown container
+    const customDropdown = document.createElement('div');
+    customDropdown.className = 'nexrad-dropdown-custom';
 
-    // Populate dropdown with NEXRAD names
+    // Selected value display
+    const selected = document.createElement('div');
+    selected.className = 'nexrad-dropdown-selected';
+    selected.textContent = 'Select a site';
+    customDropdown.appendChild(selected);
+
+    // Dropdown list
+    const list = document.createElement('div');
+    list.className = 'nexrad-dropdown-list';
+
+    // Populate list with NEXRAD names
     NEXRAD.forEach(radar => {
-        const option = document.createElement('option');
-        option.value = radar.Name;
-        option.textContent = radar.Name;
-        dropdown.appendChild(option);
+        const item = document.createElement('div');
+        item.className = 'nexrad-dropdown-item';
+        item.textContent = radar.Name;
+
+        // Hover: show marker
+        item.addEventListener('mouseenter', function () {
+            if (!window.map) return;
+            if (nexradMarker) window.map.removeLayer(nexradMarker);
+            nexradMarker = L.marker([radar.Latitude, radar.Longitude])
+                .addTo(window.map)
+                .bindTooltip(radar.Name, { permanent: true, direction: 'top', offset: [-15, -15] })
+                .openTooltip();
+        });
+
+        // Mouse leave: remove marker
+        item.addEventListener('mouseleave', function () {
+            if (nexradMarker && window.map) {
+                window.map.removeLayer(nexradMarker);
+                nexradMarker = null;
+            }
+        });
+
+        // Click: select value
+        item.addEventListener('click', function () {
+            selected.textContent = radar.Name;
+            customDropdown.classList.remove('open');
+        });
+
+        list.appendChild(item);
     });
 
-    dropdownRow.appendChild(dropdown);
+    customDropdown.appendChild(list);
+
+    // Dropdown open/close logic
+    selected.addEventListener('click', function (e) {
+        e.stopPropagation();
+        customDropdown.classList.toggle('open');
+    });
+    document.addEventListener('click', function () {
+        customDropdown.classList.remove('open');
+    });
+
+    dropdownRow.appendChild(customDropdown);
 
     // Insert the dropdown row after the CREF CONUS button
     if (crefConusBtn.parentElement.classList.contains('toggle-alaska-bref-row')) {
