@@ -264,6 +264,9 @@ const TDWR = [
 ];
 
 let nexradMarker = null;
+let nexradRadarLayer = null;
+let nexradRadarVisible = false;
+let selectedRadarName = null; // Track selected radar
 
 document.addEventListener('DOMContentLoaded', function () {
     const crefConusBtn = document.getElementById('toggle-conus-cref');
@@ -320,6 +323,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Click: select value
         item.addEventListener('click', function () {
             selected.textContent = radar.Name;
+            selectedRadarName = radar.Name; // Track selected radar
             customDropdown.classList.remove('open');
         });
 
@@ -338,6 +342,52 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     dropdownRow.appendChild(customDropdown);
+
+    // --- Add Plot Radar Button ---
+    const plotBtn = document.createElement('button');
+    plotBtn.textContent = 'Plot Radar';
+    plotBtn.style.marginLeft = '12px';
+    plotBtn.className = 'toggle-conus-btn'; // Use same style as other toggle buttons
+
+    plotBtn.addEventListener('click', function () {
+        if (!selectedRadarName) {
+            alert('Please select a NEXRAD site.');
+            return;
+        }
+        const siteCode = selectedRadarName.toLowerCase();
+
+        // Find radar info for bbox
+        const radarInfo = NEXRAD.find(r => r.Name === selectedRadarName);
+        if (!radarInfo) return;
+
+        // Calculate a simple bbox (±2 deg lat/lon)
+        const lat = radarInfo.Latitude;
+        const lon = radarInfo.Longitude;
+
+        if (!nexradRadarVisible) {
+            if (nexradRadarLayer) {
+                window.map.removeLayer(nexradRadarLayer);
+            }
+            nexradRadarLayer = L.tileLayer.wms(`https://opengeo.ncep.noaa.gov/geoserver/${siteCode}/ows`, {
+                layers: `${siteCode}_sr_bref`,
+                format: 'image/png',
+                transparent: true,
+                version: '1.3.0',
+                attribution: 'NOAA/NCEP WMS',
+                crs: L.CRS.EPSG4326
+            });
+            nexradRadarLayer.addTo(window.map);
+            plotBtn.classList.add('active');
+        } else {
+            if (nexradRadarLayer) {
+                window.map.removeLayer(nexradRadarLayer);
+            }
+            plotBtn.classList.remove('active');
+        }
+        nexradRadarVisible = !nexradRadarVisible;
+    });
+
+    dropdownRow.appendChild(plotBtn);
 
     // Insert the dropdown row after the CREF CONUS button
     if (crefConusBtn.parentElement.classList.contains('toggle-alaska-bref-row')) {
