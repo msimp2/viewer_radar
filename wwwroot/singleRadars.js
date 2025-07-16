@@ -264,7 +264,9 @@ const TDWR = [
 ];
 
 let nexradMarker = null;
-let nexradRadarLayer = null;
+const selectedRadars = new Set();
+const radarLayers = new Map();
+const radarMarkers = new Map();
 
 document.addEventListener('DOMContentLoaded', function () {
     const crefConusBtn = document.getElementById('toggle-conus-cref');
@@ -287,12 +289,36 @@ document.addEventListener('DOMContentLoaded', function () {
     // Selected value display
     const selected = document.createElement('div');
     selected.className = 'nexrad-dropdown-selected';
-    selected.textContent = 'Select a site';
+    selected.textContent = 'Select site(s)';
     customDropdown.appendChild(selected);
 
     // Dropdown list
     const list = document.createElement('div');
     list.className = 'nexrad-dropdown-list';
+
+    // Helper to update selected summary
+    function updateSelectedSummary() {
+        if (selectedRadars.size === 0) {
+            selected.textContent = 'Select site(s)';
+        } else if (selectedRadars.size <= 3) {
+            selected.textContent = Array.from(selectedRadars).join(', ');
+        } else {
+            selected.textContent = `${selectedRadars.size} selected`;
+        }
+    }
+
+    // Helper to highlight marker (custom icon)
+    function getHighlightedIcon() {
+        return L.icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png', // Use a custom icon if desired
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            shadowSize: [41, 41],
+            className: 'nexrad-marker-highlighted'
+        });
+    }
 
     // Populate list with NEXRAD names
     NEXRAD.forEach(radar => {
@@ -300,9 +326,10 @@ document.addEventListener('DOMContentLoaded', function () {
         item.className = 'nexrad-dropdown-item';
         item.textContent = radar.Name;
 
-        // Hover: show marker
+        // Hover: show a temporary marker (only if not selected)
         item.addEventListener('mouseenter', function () {
             if (!window.map) return;
+            if (selectedRadars.has(radar.Name)) return;
             if (nexradMarker) window.map.removeLayer(nexradMarker);
             nexradMarker = L.marker([radar.Latitude, radar.Longitude])
                 .addTo(window.map)
@@ -310,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 .openTooltip();
         });
 
-        // Mouse leave: remove marker
+        // Mouse leave: remove temporary marker
         item.addEventListener('mouseleave', function () {
             if (nexradMarker && window.map) {
                 window.map.removeLayer(nexradMarker);
@@ -318,26 +345,53 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
-        // Click: select value and plot radar
-        item.addEventListener('click', function () {
-            selected.textContent = radar.Name;
-            customDropdown.classList.remove('open');
-
-            // Remove previous radar layer if present
-            if (nexradRadarLayer && window.map) {
-                window.map.removeLayer(nexradRadarLayer);
-            }
-
+        // Click: toggle selection and layer/marker
+        item.addEventListener('click', function (e) {
+            e.stopPropagation();
             const siteCode = radar.Name.toLowerCase();
-            nexradRadarLayer = L.tileLayer.wms(`https://opengeo.ncep.noaa.gov/geoserver/${siteCode}/ows`, {
-                layers: `${siteCode}_sr_bref`,
-                format: 'image/png',
-                transparent: true,
-                version: '1.3.0',
-                attribution: 'NOAA/NCEP WMS',
-                crs: L.CRS.EPSG4326
-            });
-            nexradRadarLayer.addTo(window.map);
+
+            if (selectedRadars.has(radar.Name)) {
+                // Deselect: remove layer, marker, and highlight
+                selectedRadars.delete(radar.Name);
+                item.classList.remove('active');
+                if (radarLayers.has(radar.Name) && window.map) {
+                    window.map.removeLayer(radarLayers.get(radar.Name));
+                    radarLayers.delete(radar.Name);
+                }
+                if (radarMarkers.has(radar.Name) && window.map) {
+                    window.map.removeLayer(radarMarkers.get(radar.Name));
+                    radarMarkers.delete(radar.Name);
+                }
+            } else {
+                // Select: add layer, marker, and highlight
+                selectedRadars.add(radar.Name);
+                item.classList.add('active');
+                if (!radarLayers.has(radar.Name)) {
+                    const layer = L.tileLayer.wms(`https://opengeo.ncep.noaa.gov/geoserver/${siteCode}/ows`, {
+                        layers: `${siteCode}_sr_bref`,
+                        format: 'image/png',
+                        transparent: true,
+                        version: '1.3.0',
+                        attribution: 'NOAA/NCEP WMS',
+                        crs: L.CRS.EPSG4326
+                    });
+                    layer.addTo(window.map);
+                    radarLayers.set(radar.Name, layer);
+                }
+                if (!radarMarkers.has(radar.Name)) {
+                    const marker = L.marker([radar.Latitude, radar.Longitude], { icon: getHighlightedIcon() })
+                        .addTo(window.map)
+                        //.bindTooltip(radar.Name, { permanent: true, direction: 'top', offset: [-15, -15] })
+                        //.openTooltip();
+                    // Clicking the marker will also deselect
+                    marker.on('click', function () {
+                        // Simulate clicking the dropdown item
+                        item.click();
+                    });
+                    radarMarkers.set(radar.Name, marker);
+                }
+            }
+            updateSelectedSummary();
         });
 
         list.appendChild(item);
